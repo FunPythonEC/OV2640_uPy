@@ -10,7 +10,7 @@ cam = ov2640.ov2640(sclpin=22, sdapin=21, cspin=15, sckpin=14, mosipin=13, misop
 ~~~~
 
 ### I²C
-SCL -> GPIO22\n
+SCL -> GPIO22
 SDA -> GPIO21
 
 ### SPI
