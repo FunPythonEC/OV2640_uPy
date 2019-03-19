@@ -8,7 +8,7 @@ import uos
 import gc
 
 class ov2640(object):
-	def __init__(self, sclpin=22, sdapin=21, cspin=15, sckpin=14, mosipin=13, misopin=12 resolution=OV2640_320x240_JPEG, IMAGEDECODE=OV2640_YUV422):
+	def __init__(self, sclpin=22, sdapin=21, cspin=15, sckpin=14, mosipin=13, misopin=12, resolution=OV2640_320x240_JPEG, IMAGEDECODE=OV2640_YUV422):
 
 		gc.enable()
 
