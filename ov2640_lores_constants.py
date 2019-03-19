@@ -40,7 +40,7 @@ OV2640_320x240_JPEG = [
   [ 0x5b, b'\x3c' ],
   [ 0x5c, b'\x00' ],
   [ 0xe0, b'\x00' ],
-  [ 0xff, b'\xff' ],
+  [ 0xff, b'\xff' ]
 ]
 
 OV2640_352x288_JPEG = [

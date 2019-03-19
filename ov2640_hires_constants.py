@@ -1,6 +1,4 @@
 
-# 800x600 removed to save memory
-
 OV2640_1024x768_JPEG = [
 	[0xff, b'\x01'],
 	[0x11, b'\x01'],

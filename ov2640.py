@@ -8,20 +8,32 @@ import uos
 import gc
 
 class ov2640(object):
-	def __init__(self, sclpin=22, sdapin=21, cspin=15, resolution=OV2640_320x240_JPEG):
+	def __init__(self, sclpin=22, sdapin=21, cspin=15, sckpin=14, mosipin=13, misopin=12 resolution=OV2640_320x240_JPEG, IMAGEDECODE=OV2640_YUV422):
+
 		gc.enable()
+
+        #I2C pins
 		self.sclpin=sclpin
 		self.sdapin=sdapin
 		self.cspin=cspin
-		self.standby=False
 
-		self.hspi = machine.SPI(1, baudrate=80000000, polarity=0, phase=0, sck=machine.Pin(14), mosi=machine.Pin(13), miso=machine.Pin(12))
+        #SPI pins
+        self.sckpin=sckpin
+        self.mosipin=mosipin
+        self.misopin=misopin
+
+		self.standby=False #variable para control de estado de camara
+
+        #iniciacion de buses para la comunicacion    
+		self.hspi = machine.SPI(1, baudrate=80000000, polarity=0, phase=0, sck=machine.Pin(self.sckpin), mosi=machine.Pin(self.mosipin), miso=machine.Pin(self.misopin))
 		self.i2c = machine.I2C(scl=machine.Pin(22), sda=machine.Pin(21), freq=1000000)
 		self.hspi.init(baudrate=2000000)
 
+        #cs pin para la comunicacion spi, tener en cuenta que este puede ser cualquier gpio
 		self.cspin = machine.Pin(self.cspin, machine.Pin.OUT)
 		self.cspin.value(1)
 
+        #deteccion de la camara
 		addrs = self.i2c.scan()
 		print('ov2640_init: devices detected on on i2c:')
 		for a in addrs:
@@ -38,7 +50,7 @@ class ov2640(object):
 
 		# jpg init registers
 		cam_write_register_set(self.i2c, SENSORADDR, OV2640_JPEG_INIT)
-		cam_write_register_set(self.i2c, SENSORADDR, OV2640_YUV422)
+		cam_write_register_set(self.i2c, SENSORADDR, IMAGEDECODE)
 		cam_write_register_set(self.i2c, SENSORADDR, OV2640_JPEG)
 
 		self.i2c.writeto_mem(SENSORADDR, 0xff, b'\x01')
@@ -70,6 +82,82 @@ class ov2640(object):
 		            (ubinascii.hexlify(parta), ubinascii.hexlify(partb)))
 		time.sleep_us(50)
 
+
+        def capture_to_file(self, fn, overwrite):
+            # bit 0 - clear FIFO write done flag
+            cam_spi_write(b'\x04', b'\x01', self.hspi, self.cspin)
+
+            # bit 1 - start capture then read status
+            cam_spi_write(b'\x04', b'\x02', self.hspi, self.cspin)
+            time.sleep_ms(10)
+
+            # read status
+            res = cam_spi_read(b'\x41', self.hspi, self.cspin)
+            cnt = 0
+            #if (res == b'\x00'):
+            #    print("initiate capture may have failed, return byte: %s" % ubinascii.hexlify(res))
+
+            # read the image from the camera fifo
+            while True:
+                res = cam_spi_read(b'\x41', self.hspi, self.cspin)
+                mask = b'\x08'
+                if (res[0] & mask[0]):
+                    break
+                #print("continuing, res register %s" % ubinascii.hexlify(res))
+                time.sleep_ms(10)
+                cnt += 1
+            #print("slept in loop %d times" % cnt)
+
+            # read the fifo size
+            b1 = cam_spi_read(b'\x44', self.hspi, self.cspin)
+            b2 = cam_spi_read(b'\x43', self.hspi, self.cspin)
+            b3 = cam_spi_read(b'\x42', self.hspi, self.cspin)
+            val = b1[0] << 16 | b2[0] << 8 | b3[0] 
+            print("ov2640_capture: %d bytes in fifo" % val)
+            gc.collect()
+
+            bytebuf = [ 0, 0 ]
+            picbuf = [ b'\x00' ] * PICBUFSIZE
+            l = 0
+            bp = 0
+            if (overwrite == True):
+                #print("deleting old file %s" % fn)
+                try:
+                    uos.remove(fn)
+                except OSError:
+                    pass
+            while ((bytebuf[0] != b'\xd9') or (bytebuf[1] != b'\xff')):
+                bytebuf[1] = bytebuf[0]
+                if (bp > (len(picbuf) - 1)):
+                    #print("appending buffer to %s" % fn)
+                    appendbuf(fn, picbuf, bp)
+                    bp = 0
+
+                bytebuf[0] = cam_spi_read(b'\x3d', self.hspi, self.cspin)
+                l += 1
+                #print("read so far: %d, next byte: %s" % (l, ubinascii.hexlify(bytebuf[0])))
+                picbuf[bp] = bytebuf[0]
+                bp += 1
+            if (bp > 0):
+                #print("appending final buffer to %s" % fn)
+                appendbuf(fn, picbuf, bp)
+            print("read %d bytes from fifo, camera said %d were available" % (l, val))
+            return (l)
+
+        def standby(self):
+            # register set select
+            self.i2c.writeto_mem(SENSORADDR, 0xff, b'\x01')
+            # standby mode
+            self.i2c.writeto_mem(SENSORADDR, 0x09, b'\x10')
+            self.standby = True
+
+        def wake(self):
+            # register set select
+            self.i2c.writeto_mem(SENSORADDR, 0xff, b'\x01')
+            # standby mode
+            self.i2c.writeto_mem(SENSORADDR, 0x09, b'\x00')
+            self.standby = False
+
 def cam_write_register_set(i, addr, set):
     for el in set:
         raddr = el[0]
@@ -99,66 +187,7 @@ def appendbuf(fn, picbuf, howmany):
         print("error writing file")
     print("write %d bytes from buffer" % howmany)
 
-def capture_to_file(fn, overwrite):
-    # bit 0 - clear FIFO write done flag
-    cam_spi_write(b'\x04', b'\x01', hspi, cspin)
 
-    # bit 1 - start capture then read status
-    cam_spi_write(b'\x04', b'\x02', hspi, cspin)
-    time.sleep_ms(10)
-
-    # read status
-    res = cam_spi_read(b'\x41', hspi, cspin)
-    cnt = 0
-    #if (res == b'\x00'):
-    #    print("initiate capture may have failed, return byte: %s" % ubinascii.hexlify(res))
-
-    # read the image from the camera fifo
-    while True:
-        res = cam_spi_read(b'\x41', hspi, cspin)
-        mask = b'\x08'
-        if (res[0] & mask[0]):
-            break
-        #print("continuing, res register %s" % ubinascii.hexlify(res))
-        time.sleep_ms(10)
-        cnt += 1
-    #print("slept in loop %d times" % cnt)
-
-    # read the fifo size
-    b1 = cam_spi_read(b'\x44', hspi, cspin)
-    b2 = cam_spi_read(b'\x43', hspi, cspin)
-    b3 = cam_spi_read(b'\x42', hspi, cspin)
-    val = b1[0] << 16 | b2[0] << 8 | b3[0] 
-    print("ov2640_capture: %d bytes in fifo" % val)
-    gc.collect()
-
-    bytebuf = [ 0, 0 ]
-    picbuf = [ b'\x00' ] * PICBUFSIZE
-    l = 0
-    bp = 0
-    if (overwrite == True):
-        #print("deleting old file %s" % fn)
-        try:
-            uos.remove(fn)
-        except OSError:
-            pass
-    while ((bytebuf[0] != b'\xd9') or (bytebuf[1] != b'\xff')):
-        bytebuf[1] = bytebuf[0]
-        if (bp > (len(picbuf) - 1)):
-            #print("appending buffer to %s" % fn)
-            appendbuf(fn, picbuf, bp)
-            bp = 0
-
-        bytebuf[0] = cam_spi_read(b'\x3d', hspi, cspin)
-        l += 1
-        #print("read so far: %d, next byte: %s" % (l, ubinascii.hexlify(bytebuf[0])))
-        picbuf[bp] = bytebuf[0]
-        bp += 1
-    if (bp > 0):
-        #print("appending final buffer to %s" % fn)
-        appendbuf(fn, picbuf, bp)
-    print("read %d bytes from fifo, camera said %d were available" % (l, val))
-    return (l)
 
 def cam_spi_read(address, hspi, cspin):
     cspin.value(0)
