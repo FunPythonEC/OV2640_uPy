@@ -1,6 +1,19 @@
 from ov2640_constants import *
-from ov2640_lores_constants import *
-from ov2640_hires_constants import *
+
+#los scripts de constantes lores y hires son para la resolucion
+#se los encierra en try except para que si no son incluidos
+#no haya problema, sin embargo dara problemas luego si uno de estos
+#no es usado y especificado para la iniciacion de la camara
+try:
+    from ov2640_lores_constants import *
+except Exception as e:
+    print(e)
+
+try:
+    from ov2640_hires_constants import *
+except Exception as e:
+    print(e)
+
 import machine
 import time
 import ubinascii
