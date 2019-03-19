@@ -1,4 +1,4 @@
-# OV2640_uPy
+# OV2640_uPy - MicroPython class to use OV2640
 Libreria para camara OV2640 con MicroPython, especificamente para el ESP32 el cual tiene una mayor capacidad de procesamiento.
 Ha sido creada a partir de la de namato encontrada en el siguiente link: https://github.com/namato/micropython-ov2640
 
