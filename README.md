@@ -6,7 +6,8 @@ Ha sido creada a partir de la de namato encontrada en el siguiente link: https:/
 Para la comunicacion en la librería ya se ha escecificado que pines se usan, los cuales agrego a continucacion, sin embargo puede ser cambiado en el constructor:
 ~~~~ python
 import ov2640
-cam = ov2640.ov2640(sclpin=22, sdapin=21, cspin=15, sckpin=14, mosipin=13, misopin=12 resolution=OV2640_320x240_JPEG, IMAGEDECODE=OV2640_YUV422) 
+cam = ov2640.ov2640(sclpin=22, sdapin=21, cspin=15, sckpin=14, mosipin=13, misopin=12 resolution=OV2640_320x240_JPEG, IMAGEDECODE=OV2640_YUV422)
+nbytes = cam.capture_to_file("/image.jpg")
 ~~~~
 
 ### I²C
