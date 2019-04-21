@@ -28,12 +28,12 @@ class ov2640(object):
         #I2C pins
         self.sclpin=sclpin
         self.sdapin=sdapin
-        self.cspin=cspin
 
         #SPI pins
         self.sckpin=sckpin
         self.mosipin=mosipin
         self.misopin=misopin
+	self.cspin=cspin
 
         self.standby=False #variable para control de estado de camara
 
