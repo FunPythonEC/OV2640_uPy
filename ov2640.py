@@ -14,6 +14,11 @@ try:
 except Exception as e:
     print(e)
 
+try:
+    from ov2640_config import *
+except Exception as e:
+    print(e)
+
 import machine
 import time
 import ubinascii
@@ -33,7 +38,7 @@ class ov2640(object):
         self.sckpin=sckpin
         self.mosipin=mosipin
         self.misopin=misopin
-	self.cspin=cspin
+        self.cspin=cspin
 
         self.standby=False #variable para control de estado de camara
 
@@ -95,7 +100,6 @@ class ov2640(object):
                     (ubinascii.hexlify(parta), ubinascii.hexlify(partb)))
         time.sleep_us(50)
 
-
     def capture_to_file(self, fn, overwrite):
         # bit 0 - clear FIFO write done flag
         cam_spi_write(b'\x04', b'\x01', self.hspi, self.cspin)
@@ -156,6 +160,9 @@ class ov2640(object):
             appendbuf(fn, picbuf, bp)
         print("read %d bytes from fifo, camera said %d were available" % (l, val))
         return (l)
+
+    def set_mode_config(self, mode):
+        cam_write_register_set(self.i2c, SENSORADDR, mode)
 
     def standby(self):
         # register set select
