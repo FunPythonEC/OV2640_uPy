@@ -32,7 +32,6 @@ HOME=[
 ]
 
 #color saturation
-
 SATURATION2=[
 [0xff, b'\x00'],
 [0x7c, b'\x00'],
